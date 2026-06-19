@@ -637,7 +637,7 @@
     },
     "alert": {
       "sent": true,
-      "to_email": "yourmail",
+      "to_email": "your-email@gmail.com",
       "reason": "HIGH incident — OWASP alert threshold met",
       "timestamp": "2026-06-19T12:21:28.892224"
     },
