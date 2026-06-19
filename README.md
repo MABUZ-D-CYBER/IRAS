@@ -6,7 +6,7 @@ An AI-powered network incident detection and response system that captures real 
 
 ## 📚 Table of Contents
 
-- [What's New in v2.0](#-whats-new-in-v20)
+- [What's New](#-whats-new)
 - [System Architecture](#-system-architecture)
 - [Project Structure](#-project-structure)
 - [New Components Explained](#-new-components-explained)
@@ -21,9 +21,9 @@ An AI-powered network incident detection and response system that captures real 
 
 ---
 
-## 🔄 What's New in v2.0
+## 🔄 What's New
 
-| Feature | v1.0 (Existing) | v2.0 (Updated) |
+| Feature | (Existing) | v2.0 (Updated) |
 |---|---|---|
 | Input Source | Simulated incidents | ✅ Real PCAP packet capture (Npcap) |
 | AI Method | LLM prompt analysis | ✅ DNN algorithm + LLM combined |
@@ -38,7 +38,7 @@ An AI-powered network incident detection and response system that captures real 
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║           INCIDENT RESPONSE AUTOMATION SYSTEM v2.0                   ║
+║           INCIDENT RESPONSE AUTOMATION SYSTEM                        ║
 ║     Inspired by Darktrace | Cortex XDR | Npcap                       ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                        ║
@@ -111,10 +111,10 @@ An AI-powered network incident detection and response system that captures real 
 ## 📁 Project Structure
 
 ```
-incident-response-automation/
+IRAS/
 │
 ├── .env                        ← API keys + Email config (secret)
-├── .gitignore                  ← Protects secrets
+|
 │
 ├── ── INPUT & CAPTURE LAYER ──
 ├── detector.py                 ← EXISTING: Simulated incident detection
@@ -139,7 +139,6 @@ incident-response-automation/
 │
 ├── ── WEB DASHBOARD ──
 ├── app.py                      ← EXISTING (enhanced): Flask dashboard
-├── main.py                     ← EXISTING (enhanced): Entry point
 │
 └── templates/
     └── dashboard.html          ← EXISTING (enhanced): Web UI
@@ -450,7 +449,3 @@ Email Alert        : SENT ✅
 | Report Output | HTML / ReportLab (PDF) |
 
 ---
-
-## 👤 Author
-
-*Architecture v2.0 — Inspired by Darktrace, Cortex XDR, and Npcap*
