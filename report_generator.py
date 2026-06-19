@@ -36,17 +36,6 @@ _CATEGORY_LABELS = {
 
 
 def generate_report(incidents: list, stats: dict, fmt: str = "html") -> str:
-    """
-    Generate a forensic report in HTML or PDF format.
-
-    Args:
-        incidents: list of incident dicts
-        stats: statistics dict from responder.get_stats()
-        fmt: "html" or "pdf"
-
-    Returns:
-        Path to the generated file.
-    """
     os.makedirs(REPORTS_DIR, exist_ok=True)
 
     case_number = f"IR-{datetime.now().strftime('%Y%m%d')}-{str(len(incidents)+1).zfill(4)}"
@@ -75,7 +64,7 @@ def generate_report(incidents: list, stats: dict, fmt: str = "html") -> str:
                 config = pdfkit.configuration(wkhtmltopdf=path)
                 break
         if config is None:
-            config = pdfkit.configuration()  # rely on PATH
+            config = pdfkit.configuration()
         pdfkit.from_string(html_content, filepath, configuration=config)
         print(f"[Report] 📄 PDF report saved: {filepath}")
     else:
@@ -88,7 +77,6 @@ def generate_report(incidents: list, stats: dict, fmt: str = "html") -> str:
 
 
 def generate_pdf_bytes(incidents: list, stats: dict) -> bytes:
-    """Generate PDF report as bytes (for direct download via Flask)."""
     if not PDFKIT_AVAILABLE:
         raise ImportError(
             "pdfkit is not installed. Install with: pip install pdfkit\n"
@@ -97,7 +85,6 @@ def generate_pdf_bytes(incidents: list, stats: dict) -> bytes:
     case_number = f"IR-{datetime.now().strftime('%Y%m%d')}-{str(len(incidents)+1).zfill(4)}"
     html_content = _build_forensic_report(incidents, stats, case_number)
 
-    # Find wkhtmltopdf executable
     wkhtmltopdf_paths = [
         r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe',
         r'C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe',
@@ -113,8 +100,6 @@ def generate_pdf_bytes(incidents: list, stats: dict) -> bytes:
 
     return pdfkit.from_string(html_content, False, configuration=config)
 
-
-# ─── HTML Builder ──────────────────────────────────────────────────────────
 
 def _build_forensic_report(incidents: list, stats: dict, case_number: str) -> str:
     report_date = datetime.now().strftime("%B %d, %Y")
@@ -270,8 +255,9 @@ def _build_classification_table(incidents: list) -> str:
     for inc in incidents[:50]:
         sev = inc.get("severity", "UNKNOWN")
         badge_class = f"badge-{sev.lower()}" if sev.lower() in ["critical","high","medium","low"] else "badge-info"
-        category = inc.get("incident_category", "UNKNOWN")
-        cat_label = _CATEGORY_LABELS.get(category, category)
+        # Get category from incident_category first, fallback to owasp_incident_type
+        cat = inc.get("incident_category") or inc.get("owasp_incident_type", "UNKNOWN")
+        cat_label = _CATEGORY_LABELS.get(cat, cat)
         rows += f"<tr><td>#{inc.get('incident_id','?')}</td><td><span class='badge {badge_class}'>{sev}</span></td><td>{inc.get('type','Unknown')}</td><td>{cat_label}</td><td>{inc.get('timestamp','N/A')[:19]}</td></tr>"
     return f"<table><tr><th>ID</th><th>Severity</th><th>Type</th><th>Category</th><th>Timestamp</th></tr>{rows}</table><p style='font-size:12px;color:#555;'>Showing up to 50 incidents.</p>"
 
@@ -330,7 +316,7 @@ def _build_findings(incidents: list) -> str:
         sev = inc.get("severity", "LOW")
         badge_class = f"badge-{sev.lower()}" if sev.lower() in ["critical","high","medium","low"] else "badge-info"
         analysis = inc.get("analysis", {})
-        cat = inc.get("incident_category", "UNKNOWN")
+        cat = inc.get("incident_category") or inc.get("owasp_incident_type", "UNKNOWN")
         cat_label = _CATEGORY_LABELS.get(cat, cat)
         cards += f"""
         <div style="background:#f9f9f9;padding:14px 18px;margin:12px 0;border-left:3px solid {'#cc0000' if sev=='CRITICAL' else '#e67300' if sev=='HIGH' else '#e6b800' if sev=='MEDIUM' else '#2d862d'};border-radius:2px;">
@@ -410,8 +396,8 @@ def _build_post_incident_review(incidents: list) -> str:
     """
 
 def _build_legal_notes(incidents: list) -> str:
-    breach_detected = any(i.get("incident_category") == "DATA_BREACH" for i in incidents)
-    breach_count = sum(1 for i in incidents if i.get("incident_category") == "DATA_BREACH")
+    breach_detected = any(i.get("incident_category") == "DATA_BREACH" or i.get("owasp_incident_type") == "DATA_BREACH" for i in incidents)
+    breach_count = sum(1 for i in incidents if i.get("incident_category") == "DATA_BREACH" or i.get("owasp_incident_type") == "DATA_BREACH")
     return f"""
     <p><strong>Regulatory and Compliance Considerations</strong></p>
     <ul>
