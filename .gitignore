@@ -1,0 +1,51 @@
+# ─── SECRETS (NEVER COMMIT) ───
+.env
+.env.*
+*.secret
+*.key
+*.pem
+
+# ─── PYTHON CACHE ───
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# ─── GENERATED DATA (project‑specific) ───
+incidents_log.json
+reports/*.pdf
+reports/*.html
+*.log
+
+# ─── IDE & EDITOR FILES ───
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ─── TESTING ───
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ─── VIRTUAL ENVIRONMENT ───
+venv/
+env/
+ENV/
+.venv/
+
+# ─── OS GENERATED ───
+*.tmp
+*.temp
+*.bak
