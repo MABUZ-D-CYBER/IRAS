@@ -1,12 +1,13 @@
 """
-analyzer.py — LLM Incident Analyzer with OWASP Agentic Skills Top 10
-Layer 3: DNN AI Analysis — uses Groq LLaMA 3.3 70B
+analyzer.py — LLM Incident Analyzer with Classification & Workflow
+Inspired by OWASP Agentic Skills Top 10 but uses generic incident categories.
 
-OWASP Agentic Skills Top 10 Integration:
-  → Severity Classification (CRITICAL/HIGH/MEDIUM/LOW)
-  → Incident Type Mapping to OWASP Scenarios
+Features:
+  → Incident Classification (CRITICAL/HIGH/MEDIUM/LOW)
+  → Incident Category Mapping (MALICIOUS_SKILL, DATA_BREACH, etc.)
   → Detection Indicators
-  → Response Workflow Steps
+  → Indicators of Compromise (IOCs)
+  → 8‑Step Response Workflow
 """
 
 import os
@@ -21,24 +22,23 @@ except ImportError:
     pass
 
 
-# ─── OWASP Severity Classification ──────────────────────────────────────────
+# ─── Severity Classification ────────────────────────────────────────────────
 
-class OWASPSeverity:
-    """OWASP Agentic Skills Top 10 Severity Levels"""
-    CRITICAL = "CRITICAL"   # Active exploitation, mass deployment, data exfiltration
-    HIGH = "HIGH"           # Confirmed malicious skill, widespread exposure
-    MEDIUM = "MEDIUM"       # Suspicious behavior, potential vulnerability
-    LOW = "LOW"             # Minor finding, no immediate risk
+class SeverityLevel:
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
 
 
-# ─── OWASP Incident Types ──────────────────────────────────────────────────
+# ─── Incident Categories (generic) ──────────────────────────────────────────
 
-OWASP_INCIDENT_TYPES = {
+INCIDENT_CATEGORIES = {
     "MALICIOUS_SKILL": {
-        "id": "OWASP-AS-01",
-        "name": "Malicious Skill Discovery",
-        "description": "A malicious skill has been discovered in a registry.",
-        "severity": OWASPSeverity.HIGH,
+        "id": "CAT-01",
+        "name": "Malicious Skill / Payload",
+        "description": "A malicious skill or component has been discovered.",
+        "severity": SeverityLevel.HIGH,
         "detection_indicators": [
             "Automated scanner flags on installation",
             "User reports suspicious behavior",
@@ -48,10 +48,10 @@ OWASP_INCIDENT_TYPES = {
         ]
     },
     "DATA_BREACH": {
-        "id": "OWASP-AS-02",
-        "name": "Data Breach via Skill",
-        "description": "A skill has been used to exfiltrate sensitive user data.",
-        "severity": OWASPSeverity.CRITICAL,
+        "id": "CAT-02",
+        "name": "Data Breach / Exfiltration",
+        "description": "Sensitive data has been exfiltrated.",
+        "severity": SeverityLevel.CRITICAL,
         "detection_indicators": [
             "Large outbound data transfers",
             "Unusual API calls to external domains",
@@ -60,10 +60,10 @@ OWASP_INCIDENT_TYPES = {
         ]
     },
     "SUPPLY_CHAIN_ATTACK": {
-        "id": "OWASP-AS-03",
-        "name": "Supply Chain Attack Detection",
+        "id": "CAT-03",
+        "name": "Supply Chain Compromise",
         "description": "Compromised dependencies could propagate malware.",
-        "severity": OWASPSeverity.HIGH,
+        "severity": SeverityLevel.HIGH,
         "detection_indicators": [
             "Dependency integrity check fails",
             "Known vulnerabilities in dependencies",
@@ -71,10 +71,10 @@ OWASP_INCIDENT_TYPES = {
         ]
     },
     "SKILL_ABUSE": {
-        "id": "OWASP-AS-04",
-        "name": "Skill Abuse / Misuse",
+        "id": "CAT-04",
+        "name": "Legitimate Tool Abuse",
         "description": "Legitimate skill being used maliciously.",
-        "severity": OWASPSeverity.MEDIUM,
+        "severity": SeverityLevel.MEDIUM,
         "detection_indicators": [
             "Unusual access patterns",
             "Policy violations detected",
@@ -82,10 +82,10 @@ OWASP_INCIDENT_TYPES = {
         ]
     },
     "CONFIGURATION_DRIFT": {
-        "id": "OWASP-AS-05",
-        "name": "Configuration Drift",
+        "id": "CAT-05",
+        "name": "Configuration Drift / Policy Violation",
         "description": "Skill configuration deviates from secure baseline.",
-        "severity": OWASPSeverity.LOW,
+        "severity": SeverityLevel.LOW,
         "detection_indicators": [
             "Configuration audit fails",
             "Security baseline violation",
@@ -93,10 +93,10 @@ OWASP_INCIDENT_TYPES = {
         ]
     },
     "CREDENTIAL_THEFT": {
-        "id": "OWASP-AS-06",
-        "name": "Credential Theft via Skill",
-        "description": "Skill harvested user credentials.",
-        "severity": OWASPSeverity.CRITICAL,
+        "id": "CAT-06",
+        "name": "Credential Theft / Account Compromise",
+        "description": "User credentials have been harvested.",
+        "severity": SeverityLevel.CRITICAL,
         "detection_indicators": [
             "Credential access attempts",
             "API key rotation triggers",
@@ -106,9 +106,9 @@ OWASP_INCIDENT_TYPES = {
 }
 
 
-# ─── OWASP Response Workflow ────────────────────────────────────────────────
+# ─── Response Workflow (8 steps) ──────────────────────────────────────────
 
-OWASP_RESPONSE_WORKFLOW = {
+RESPONSE_WORKFLOW = {
     "steps": [
         {"step": 1, "name": "Detect", "duration": "Immediate"},
         {"step": 2, "name": "Analyze & Classify", "duration": "30 minutes"},
@@ -125,14 +125,13 @@ OWASP_RESPONSE_WORKFLOW = {
 # ─── Prompt Template ─────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
-You are a senior cybersecurity analyst AI specializing in AI agent skill security.
-Analyze the given incident using the OWASP Agentic Skills Top 10 framework.
+You are a senior cybersecurity analyst AI. Analyze the given incident and provide a structured assessment.
 
 Respond ONLY with a valid JSON object — no markdown, no extra text.
 
 JSON structure (all fields required):
 {
-  "owasp_incident_type": "MALICIOUS_SKILL|DATA_BREACH|SUPPLY_CHAIN_ATTACK|SKILL_ABUSE|CONFIGURATION_DRIFT|CREDENTIAL_THEFT",
+  "incident_category": "MALICIOUS_SKILL|DATA_BREACH|SUPPLY_CHAIN_ATTACK|SKILL_ABUSE|CONFIGURATION_DRIFT|CREDENTIAL_THEFT",
   "severity": "CRITICAL|HIGH|MEDIUM|LOW",
   "detection_indicators": ["indicator1", "indicator2"],
   "explanation": "2-3 sentence description of what is happening",
@@ -174,26 +173,26 @@ def _build_user_prompt(incident: dict, dnn: dict) -> str:
 
 DNN Classification:
 - Label: {dnn.get("label", "Unknown")}
-- Threat Score: {dnn.get("threat_score", 0.0)} (0.0 = safe, 1.0 = critical)
+- Threat Score: {dnn.get("threat_score", 0.0)}
 - Probabilities: Normal={dnn.get("probabilities", {}).get("Normal", 0)}, \
 Suspicious={dnn.get("probabilities", {}).get("Suspicious", 0)}, \
 Malicious={dnn.get("probabilities", {}).get("Malicious", 0)}
 
-Provide your OWASP-aligned cybersecurity analysis as JSON only."""
+Provide your cybersecurity analysis as JSON only."""
 
 
 # ─── Main Analysis Function ──────────────────────────────────────────────────
 
 def analyze_incident(incident: dict, dnn_result: dict) -> dict:
     """
-    Analyze a network incident using OWASP Agentic Skills Top 10 framework.
+    Analyze a network incident with comprehensive classification and workflow.
 
     Args:
         incident:   dict from detector.py or pcap pipeline
         dnn_result: dict from dnn_model.predict()
 
     Returns:
-        OWASP-aligned analysis with severity, indicators, IOC's, and workflow
+        Analysis dict with incident_category, severity, indicators, IOCs, workflow.
     """
     api_key = os.getenv("GROQ_API_KEY", "").strip()
 
@@ -201,24 +200,40 @@ def analyze_incident(incident: dict, dnn_result: dict) -> dict:
         try:
             result = _call_groq(api_key, incident, dnn_result)
             result["source"] = "groq"
-            result["owasp_version"] = "Agentic Skills Top 10"
-            print(f"[LLM] ✅ OWASP analysis: {result.get('owasp_incident_type')} — {result.get('severity')}")
+            print(f"[LLM] ✅ Groq analysis: {result.get('incident_category')} — {result.get('severity')}")
+            # Ensure category exists
+            if "incident_category" not in result or not result["incident_category"]:
+                result["incident_category"] = _default_category(dnn_result)
+                print(f"[LLM] ℹ️ Added default category: {result['incident_category']}")
             return result
         except Exception as e:
-            print(f"[LLM] ⚠️ Groq error: {e} — using OWASP fallback")
+            print(f"[LLM] ⚠️ Groq error: {e} — using fallback")
 
-    # ── OWASP Rule-based fallback ──────────────────────────────────────────
-    result = _owasp_fallback_analysis(incident, dnn_result)
+    # ── Rule-based fallback ──────────────────────────────────────────────────
+    result = _fallback_analysis(incident, dnn_result)
     result["source"] = "fallback"
-    result["owasp_version"] = "Agentic Skills Top 10"
-    print(f"[LLM] ℹ️ OWASP fallback: {result.get('owasp_incident_type')} — {result.get('severity')}")
+    # Safety check: ensure category is set
+    if "incident_category" not in result or not result["incident_category"]:
+        result["incident_category"] = _default_category(dnn_result)
+        print(f"[LLM] ℹ️ Added default category: {result['incident_category']}")
+    print(f"[LLM] ℹ️ Fallback: {result.get('incident_category')} — {result.get('severity')}")
     return result
+
+
+def _default_category(dnn_result: dict) -> str:
+    """Return a default category based on DNN label."""
+    dnn_label = dnn_result.get("label", "Normal")
+    if dnn_label == "Malicious":
+        return "MALICIOUS_SKILL"
+    elif dnn_label == "Suspicious":
+        return "SKILL_ABUSE"
+    else:
+        return "CONFIGURATION_DRIFT"
 
 
 # ─── Groq Call ───────────────────────────────────────────────────────────────
 
 def _call_groq(api_key: str, incident: dict, dnn: dict) -> dict:
-    """Call Groq API and parse JSON response"""
     import urllib.request
 
     payload = json.dumps({
@@ -246,7 +261,6 @@ def _call_groq(api_key: str, incident: dict, dnn: dict) -> dict:
 
     raw_text = body["choices"][0]["message"]["content"].strip()
 
-    # Strip markdown fences if present
     if raw_text.startswith("```"):
         raw_text = raw_text.split("```")[1]
         if raw_text.startswith("json"):
@@ -255,11 +269,11 @@ def _call_groq(api_key: str, incident: dict, dnn: dict) -> dict:
     return json.loads(raw_text)
 
 
-# ─── OWASP Rule-based Fallback ─────────────────────────────────────────────
+# ─── Rule-based Fallback ─────────────────────────────────────────────────────
 
-_OWASP_FALLBACK_LIBRARY = {
+_FALLBACK_LIBRARY = {
     "DDoS Attack Suspected": {
-        "owasp_incident_type": "SKILL_ABUSE",
+        "incident_category": "SKILL_ABUSE",
         "severity": "HIGH",
         "detection_indicators": [
             "Unusual network activity detected",
@@ -292,7 +306,7 @@ _OWASP_FALLBACK_LIBRARY = {
         }
     },
     "SQL Injection Attempt": {
-        "owasp_incident_type": "SKILL_ABUSE",
+        "incident_category": "SKILL_ABUSE",
         "severity": "CRITICAL",
         "detection_indicators": [
             "Command injection patterns found",
@@ -325,7 +339,7 @@ _OWASP_FALLBACK_LIBRARY = {
         }
     },
     "Brute Force Login Attempt": {
-        "owasp_incident_type": "CREDENTIAL_THEFT",
+        "incident_category": "CREDENTIAL_THEFT",
         "severity": "HIGH",
         "detection_indicators": [
             "Credential access attempts detected",
@@ -358,7 +372,7 @@ _OWASP_FALLBACK_LIBRARY = {
         }
     },
     "Port Scan Detected": {
-        "owasp_incident_type": "MALICIOUS_SKILL",
+        "incident_category": "MALICIOUS_SKILL",
         "severity": "MEDIUM",
         "detection_indicators": [
             "Systematic port scanning pattern",
@@ -391,7 +405,7 @@ _OWASP_FALLBACK_LIBRARY = {
         }
     },
     "Malware Download Detected": {
-        "owasp_incident_type": "MALICIOUS_SKILL",
+        "incident_category": "MALICIOUS_SKILL",
         "severity": "CRITICAL",
         "detection_indicators": [
             "Outbound traffic to known malware distribution server",
@@ -425,7 +439,7 @@ _OWASP_FALLBACK_LIBRARY = {
         }
     },
     "DNS Tunneling Detected": {
-        "owasp_incident_type": "DATA_BREACH",
+        "incident_category": "DATA_BREACH",
         "severity": "HIGH",
         "detection_indicators": [
             "Unusually high DNS query volume",
@@ -458,7 +472,7 @@ _OWASP_FALLBACK_LIBRARY = {
         }
     },
     "Unauthorized Access Attempt": {
-        "owasp_incident_type": "CREDENTIAL_THEFT",
+        "incident_category": "CREDENTIAL_THEFT",
         "severity": "HIGH",
         "detection_indicators": [
             "Unusual login patterns detected",
@@ -489,24 +503,48 @@ _OWASP_FALLBACK_LIBRARY = {
             "remediate": "MFA enforced, conditional access policies implemented",
             "communicate": "Affected user notified"
         }
+    },
+    # ── PCAP Analysis mapping ──
+    "PCAP Analysis": {
+        "incident_category": "SKILL_ABUSE",   # will be overridden by DNN label later
+        "severity": "MEDIUM",
+        "detection_indicators": [
+            "Network packet capture analysis",
+            "Traffic pattern review"
+        ],
+        "explanation": "Analysis of network traffic from a PCAP file. No specific threat pattern was identified by the DNN, but activity may still require review.",
+        "root_cause": "Traffic pattern analysis from captured packets.",
+        "iocs": [],
+        "remediation_steps": [
+            "Step 1: Review the packet capture for any suspicious activity.",
+            "Step 2: If no threats found, archive the capture for future reference.",
+            "Step 3: Continue monitoring network traffic."
+        ],
+        "prevention_tips": [
+            "Regularly capture and review network traffic.",
+            "Implement real‑time monitoring to complement periodic captures."
+        ],
+        "response_workflow": {
+            "detect": "PCAP file uploaded and processed",
+            "analyze": "Traffic analysed by DNN and LLM",
+            "contain": "No containment needed (if no threat)",
+            "investigate": "Further investigation if suspicious",
+            "remediate": "Apply mitigations if required",
+            "communicate": "Report generated"
+        }
     }
 }
 
 
-# ─── OWASP Fallback Analysis ──────────────────────────────────────────────
-
-def _owasp_fallback_analysis(incident: dict, dnn: dict) -> dict:
-    """
-    OWASP-aligned rule-based analysis used when Groq is unavailable.
-    """
+def _fallback_analysis(incident: dict, dnn: dict) -> dict:
     inc_type = incident.get("type", "")
     dnn_label = dnn.get("label", "Unknown")
     dnn_score = dnn.get("threat_score", 0.0)
 
     # Try exact match on incident type first
-    template = _OWASP_FALLBACK_LIBRARY.get(inc_type)
+    template = _FALLBACK_LIBRARY.get(inc_type)
 
-    # Map DNN label to OWASP severity
+    # Map DNN label to default severity
     severity_map = {
         "Malicious": "CRITICAL",
         "Suspicious": "HIGH",
@@ -514,55 +552,56 @@ def _owasp_fallback_analysis(incident: dict, dnn: dict) -> dict:
     }
     default_severity = severity_map.get(dnn_label, "MEDIUM")
 
-    if template is None:
-        # Create a basic OWASP template
-        owasp_type = "SKILL_ABUSE"
-        if dnn_label == "Malicious":
-            owasp_type = "MALICIOUS_SKILL"
-        elif dnn_label == "Suspicious":
-            owasp_type = "SKILL_ABUSE"
+    if template:
+        # If it's PCAP Analysis, override category based on DNN label
+        if inc_type == "PCAP Analysis":
+            if dnn_label == "Malicious":
+                template["incident_category"] = "MALICIOUS_SKILL"
+                template["severity"] = "HIGH"
+            elif dnn_label == "Suspicious":
+                template["incident_category"] = "SKILL_ABUSE"
+                template["severity"] = "MEDIUM"
+            else:
+                template["incident_category"] = "CONFIGURATION_DRIFT"
+                template["severity"] = "LOW"
+        return template
 
-        return {
-            "owasp_incident_type": owasp_type,
-            "severity": default_severity,
-            "detection_indicators": [
-                "Automated scanner flagged unusual activity",
-                "DNN classification: " + dnn_label,
-                f"Threat score: {dnn_score:.2f}"
-            ],
-            "explanation": f"A {default_severity.lower()} security event has been detected. The DNN classified this as '{dnn_label}' with a threat score of {dnn_score:.2f}.",
-            "root_cause": "Unusual network activity detected by DNN analysis.",
-            "iocs": [
-                {"type": "ip_address", "value": incident.get("source_ip", "Unknown"), "confidence": "medium"}
-            ],
-            "remediation_steps": [
-                "Step 1: Log the event for further investigation.",
-                "Step 2: Review logs for additional context.",
-                "Step 3: Monitor for recurrence."
-            ],
-            "prevention_tips": [
-                "Review and harden your security posture.",
-                "Implement continuous monitoring.",
-                "Conduct regular security assessments."
-            ],
-            "response_workflow": {
-                "detect": "DNN classification triggered alert",
-                "analyze": "Incident analyzed using OWASP framework",
-                "contain": "Incident logged for investigation",
-                "investigate": "Logs reviewed for context",
-                "remediate": "Security improvements identified",
-                "communicate": "Stakeholders notified"
-            }
-        }
+    # Generic template for unknown types
+    category = "MALICIOUS_SKILL" if dnn_label == "Malicious" else \
+               "SKILL_ABUSE" if dnn_label == "Suspicious" else \
+               "CONFIGURATION_DRIFT"
+
+    severity = default_severity
 
     return {
-        "owasp_incident_type": template.get("owasp_incident_type", "SKILL_ABUSE"),
-        "severity": template.get("severity", default_severity),
-        "detection_indicators": template.get("detection_indicators", []),
-        "explanation": template.get("explanation", "No explanation available."),
-        "root_cause": template.get("root_cause", "Unknown"),
-        "iocs": template.get("iocs", []),
-        "remediation_steps": template.get("remediation_steps", []),
-        "prevention_tips": template.get("prevention_tips", []),
-        "response_workflow": template.get("response_workflow", {})
+        "incident_category": category,
+        "severity": severity,
+        "detection_indicators": [
+            "Automated scanner flagged unusual activity",
+            f"DNN classification: {dnn_label}",
+            f"Threat score: {dnn_score:.2f}"
+        ],
+        "explanation": f"A {severity.lower()} security event has been detected. The DNN classified this as '{dnn_label}' with a threat score of {dnn_score:.2f}.",
+        "root_cause": "Unusual network activity detected by DNN analysis.",
+        "iocs": [
+            {"type": "ip_address", "value": incident.get("source_ip", "Unknown"), "confidence": "medium"}
+        ],
+        "remediation_steps": [
+            "Step 1: Log the event for further investigation.",
+            "Step 2: Review logs for additional context.",
+            "Step 3: Monitor for recurrence."
+        ],
+        "prevention_tips": [
+            "Review and harden your security posture.",
+            "Implement continuous monitoring.",
+            "Conduct regular security assessments."
+        ],
+        "response_workflow": {
+            "detect": "DNN classification triggered alert",
+            "analyze": "Incident analyzed using framework",
+            "contain": "Incident logged for investigation",
+            "investigate": "Logs reviewed for context",
+            "remediate": "Security improvements identified",
+            "communicate": "Stakeholders notified"
+        }
     }
