@@ -1,11 +1,4 @@
-# 🛡️ Incident Response Automation System v2.0
-
-> **Inspired by Darktrace, Cortex XDR & Npcap — Designed for Beginners**
-
-![Version](https://img.shields.io/badge/version-2.0-blue)
-![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen)
-![Status](https://img.shields.io/badge/status-In%20Development-yellow)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+# 🛡️ Incident Response Automation System 
 
 An AI-powered network incident detection and response system that captures real network packets, classifies threats using a Deep Neural Network, generates remediation guidance via LLM, sends automated email alerts, and produces detailed HTML incident reports.
 
