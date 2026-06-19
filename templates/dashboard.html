@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🛡️ IRAS – Splunk Style Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+
+    <style>
+        /* ─── RESET & BASE ────────────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            color: #e0e0e0;
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 100vh;
+            padding: 16px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        /* Scanline overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            background: repeating-linear-gradient(0deg,
+                transparent, transparent 2px,
+                rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px
+            );
+        }
+        /* Grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image:
+                linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ─── TYPOGRAPHY ─────────────────────────────────────────────────── */
+        h1, h2, h3, .cyber-text {
+            font-family: 'Orbitron', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ─── CHAMFERED CORNERS ──────────────────────────────────────────── */
+        .cyber-chamfer {
+            clip-path: polygon(0 10px, 10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px));
+        }
+        .cyber-chamfer-sm {
+            clip-path: polygon(0 6px, 6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px));
+        }
+
+        /* ─── NEON EFFECTS ───────────────────────────────────────────────── */
+        .neon-glow { box-shadow: 0 0 5px #00ff88, 0 0 15px #00ff8840; }
+        .neon-text { text-shadow: 0 0 5px #00ff88, 0 0 15px #00ff8840; }
+        .neon-border { border-color: #00ff88; box-shadow: 0 0 5px #00ff88; }
+
+        /* ─── GLITCH TEXT ────────────────────────────────────────────────── */
+        .cyber-glitch {
+            position: relative;
+            display: inline-block;
+        }
+        .cyber-glitch::before,
+        .cyber-glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        .cyber-glitch::before {
+            color: #ff00ff;
+            text-shadow: -1px 0 #ff00ff;
+            animation: glitch-skew 2s infinite;
+        }
+        .cyber-glitch::after {
+            color: #00d4ff;
+            text-shadow: 1px 0 #00d4ff;
+            animation: glitch-skew 2s infinite reverse;
+        }
+        @keyframes glitch-skew {
+            0%, 100% { transform: translate(0); }
+            20% { transform: translate(-2px, 1px); }
+            40% { transform: translate(2px, -1px); }
+            60% { transform: translate(-1px, 2px); }
+            80% { transform: translate(1px, -2px); }
+        }
+
+        /* ─── BLINK ──────────────────────────────────────────────────────── */
+        .blink { animation: blink 1s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* ─── SPLUNK-STYLE HEADER BAR ───────────────────────────────────── */
+        .splunk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 12px 20px;
+            background: #12121a;
+            border: 1px solid #2a2a3a;
+            clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
+            margin-bottom: 20px;
+        }
+        .splunk-header .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .splunk-header .brand h1 {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: #00ff88;
+            letter-spacing: 0.2em;
+            text-shadow: 0 0 10px #00ff88, 0 0 30px #00ff8840;
+        }
+        /* ── v2.0 badge removed ── */
+        .splunk-header .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ─── SPLUNK-STYLE INPUT BAR (Filters) ──────────────────────────── */
+        .input-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px 20px;
+            padding: 12px 16px;
+            background: #12121a;
+            border: 1px solid #2a2a3a;
+            clip-path: polygon(0 6px, 6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px));
+            margin-bottom: 20px;
+        }
+        .input-bar .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.7rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .input-bar select,
+        .input-bar input[type="text"] {
+            background: #0a0a0f;
+            border: 1px solid #2a2a3a;
+            color: #e0e0e0;
+            padding: 4px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            clip-path: polygon(0 4px, 4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px));
+            outline: none;
+            min-width: 120px;
+        }
+        .input-bar select:focus,
+        .input-bar input[type="text"]:focus {
+            border-color: #00ff88;
+            box-shadow: 0 0 10px #00ff8830;
+        }
+        .input-bar .terminal-prefix {
+            color: #00ff88;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        /* ─── BUTTONS ────────────────────────────────────────────────────── */
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            background: transparent;
+            border: 2px solid #00ff88;
+            color: #00ff88;
+            clip-path: polygon(0 6px, 6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px));
+            cursor: pointer;
+            transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn:hover {
+            background: #00ff88;
+            color: #0a0a0f;
+            box-shadow: 0 0 15px #00ff88, 0 0 30px #00ff8840;
+        }
+        .btn:disabled { opacity: 0.4; pointer-events: none; }
+        .btn-secondary { border-color: #ff00ff; color: #ff00ff; }
+        .btn-secondary:hover { background: #ff00ff; color: #0a0a0f; box-shadow: 0 0 15px #ff00ff, 0 0 30px #ff00ff40; }
+        .btn-danger { border-color: #ff3366; color: #ff3366; }
+        .btn-danger:hover { background: #ff3366; color: #0a0a0f; box-shadow: 0 0 15px #ff3366, 0 0 30px #ff336640; }
+        .btn-primary { border-color: #00d4ff; color: #00d4ff; }
+        .btn-primary:hover { background: #00d4ff; color: #0a0a0f; box-shadow: 0 0 15px #00d4ff, 0 0 30px #00d4ff40; }
+        .btn-ghost { border-color: #2a2a3a; color: #6b7280; }
+        .btn-ghost:hover { border-color: #00ff88; color: #00ff88; box-shadow: 0 0 10px #00ff8830; }
+
+        /* ─── SPLUNK-STYLE STATS ROW ────────────────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .stats-row { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        .stat-panel {
+            background: #12121a;
+            border: 1px solid #2a2a3a;
+            padding: 12px 8px;
+            text-align: center;
+            clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
+            transition: all 200ms ease;
+        }
+        .stat-panel:hover {
+            border-color: #00ff88;
+            box-shadow: 0 0 20px #00ff8820;
+            transform: translateY(-2px);
+        }
+        .stat-panel .number {
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            font-weight: 900;
+            line-height: 1.2;
+            color: #e0e0e0;
+        }
+        .stat-panel .label {
+            font-size: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .stat-panel.critical .number { color: #ef4444; }
+        .stat-panel.high .number { color: #f97316; }
+        .stat-panel.medium .number { color: #eab308; }
+        .stat-panel.low .number { color: #22c55e; }
+        .stat-panel.total .number { color: #00d4ff; }
+        .stat-panel.alerts .number { color: #a78bfa; }
+
+        /* ─── SPLUNK-STYLE ROW / PANEL GRID ────────────────────────────── */
+        .dashboard-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 768px) {
+            .dashboard-row { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: #12121a;
+            border: 1px solid #2a2a3a;
+            clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
+            overflow: hidden;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 14px;
+            background: #1c1c2e;
+            border-bottom: 1px solid #2a2a3a;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #6b7280;
+        }
+        .panel-header .panel-title {
+            font-family: 'Orbitron', monospace;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+        .panel-header .panel-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .panel-body {
+            padding: 12px 14px;
+        }
+        .panel-body ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .panel-body ul li {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            padding: 4px 0;
+            border-bottom: 1px solid #1c1c2e30;
+            color: #cbd5e1;
+        }
+        .panel-body ul li .count {
+            color: #00ff88;
+            font-weight: 600;
+        }
+
+        /* ─── SEVERITY BARS ───────────────────────────────────────────────── */
+        .severity-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .severity-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.65rem;
+        }
+        .severity-bar .label {
+            width: 60px;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+        .severity-bar .track {
+            flex: 1;
+            height: 8px;
+            background: #1c1c2e;
+            clip-path: polygon(0 4px, 4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px));
+            overflow: hidden;
+        }
+        .severity-bar .fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        .severity-bar .value {
+            min-width: 24px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 0.7rem;
+        }
+        .fill-critical { background: #ef4444; }
+        .fill-high { background: #f97316; }
+        .fill-medium { background: #eab308; }
+        .fill-low { background: #22c55e; }
+
+        /* ─── TIMELINE CHART ────────────────────────────────────────────── */
+        .timeline-chart {
+            display: flex;
+            align-items: flex-end;
+            height: 70px;
+            gap: 3px;
+            margin-top: 4px;
+        }
+        .timeline-bar {
+            flex: 1;
+            background: #00ff8840;
+            transition: height 0.4s ease;
+            clip-path: polygon(0 2px, 2px 0, calc(100% - 2px) 0, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 0 calc(100% - 2px));
+            min-height: 4px;
+        }
+        .timeline-bar:hover {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+        .timeline-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.45rem;
+            color: #475569;
+            margin-top: 2px;
+        }
+
+        /* ─── ALERT FEED ──────────────────────────────────────────────────── */
+        .alert-feed {
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .alert-feed .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            padding: 4px 0;
+            border-bottom: 1px solid #1c1c2e;
+        }
+        .alert-feed .alert-item .sev {
+            font-weight: 700;
+        }
+        .alert-feed .alert-item .sev-critical { color: #ef4444; }
+        .alert-feed .alert-item .sev-high { color: #f97316; }
+
+        /* ─── TABLE PANEL ────────────────────────────────────────────────── */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+        }
+        th {
+            text-align: left;
+            padding: 6px 10px;
+            background: #1c1c2e;
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            border-bottom: 2px solid #2a2a3a;
+        }
+        td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #1c1c2e;
+            vertical-align: middle;
+            color: #cbd5e1;
+        }
+        tr:hover td { background: #1c1c2e60; }
+        .severity-badge {
+            display: inline-block;
+            padding: 1px 8px;
+            font-size: 0.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            clip-path: polygon(0 4px, 4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px));
+        }
+        .sev-critical { background: #ef444430; color: #ef4444; border: 1px solid #ef4444; }
+        .sev-high { background: #f9731630; color: #f97316; border: 1px solid #f97316; }
+        .sev-medium { background: #eab30830; color: #eab308; border: 1px solid #eab308; }
+        .sev-low { background: #22c55e30; color: #22c55e; border: 1px solid #22c55e; }
+        .dnn-score-bar {
+            display: inline-block;
+            width: 40px;
+            height: 4px;
+            background: #1c1c2e;
+            overflow: hidden;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+        .dnn-score-bar .fill {
+            height: 100%;
+            background: #00ff88;
+            transition: width 200ms;
+        }
+        .alert-icon { font-size: 0.8rem; text-align: center; }
+        .empty-state {
+            padding: 20px;
+            text-align: center;
+            color: #475569;
+            font-size: 0.75rem;
+        }
+        .empty-state span { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+
+        /* ─── TOAST ──────────────────────────────────────────────────────── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #12121a;
+            border-left: 4px solid #00ff88;
+            padding: 10px 18px;
+            border: 1px solid #2a2a3a;
+            clip-path: polygon(0 6px, 6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px));
+            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            font-size: 0.75rem;
+            max-width: 380px;
+            z-index: 9999;
+            transform: translateY(120px);
+            opacity: 0;
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.error { border-left-color: #ff3366; }
+        .toast.success { border-left-color: #00ff88; }
+        .toast .close {
+            margin-left: 14px;
+            cursor: pointer;
+            color: #6b7280;
+            font-weight: 700;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        /* ─── SCROLLBAR ──────────────────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0a0f; }
+        ::-webkit-scrollbar-thumb { background: #2a2a3a; clip-path: polygon(0 4px, 4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px)); }
+        ::-webkit-scrollbar-thumb:hover { background: #00ff88; }
+
+        /* ─── FULL-WIDTH PANEL ──────────────────────────────────────────── */
+        .panel-full {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ═══ SPLUNK-STYLE HEADER ═══ -->
+    <div class="splunk-header">
+        <div class="brand">
+            <h1><span class="cyber-glitch" data-text="🛡️ IRAS">🛡️ IRAS</span></h1>
+            <!-- 👇 v2.0 badge removed -->
+            <span style="font-size:0.6rem;color:#475569;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;">| SECURITY DASHBOARD</span>
+        </div>
+        <div class="actions">
+            <button class="btn" id="scanBtn">🔍 Scan</button>
+            <button class="btn btn-primary" id="reportBtn">📄 Report</button>
+            <button class="btn btn-danger" id="clearBtn">🗑️ Clear</button>
+        </div>
+    </div>
+
+    <!-- ═══ INPUT BAR (Splunk-style filters) ═══ -->
+    <div class="input-bar">
+        <div class="input-group">
+            <span class="terminal-prefix">></span>
+            <span>Time Range</span>
+            <select id="timeRange">
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="all">All Time</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <span>Severity</span>
+            <select id="severityFilter">
+                <option value="all">All</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <span>Search</span>
+            <input type="text" id="searchInput" placeholder="Filter incidents..." />
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+            <span style="font-size:0.6rem;color:#475569;" id="lastUpdated">Last updated: --</span>
+            <button class="btn btn-ghost" id="refreshBtn" style="padding:4px 10px;font-size:0.55rem;">⟳</button>
+        </div>
+    </div>
+
+    <!-- ═══ STATS ROW (6 panels) ═══ -->
+    <div class="stats-row" id="statsGrid">
+        <div class="stat-panel total">
+            <div class="number" id="statTotal">0</div>
+            <div class="label">Total Incidents</div>
+        </div>
+        <div class="stat-panel critical">
+            <div class="number" id="statCritical">0</div>
+            <div class="label">Critical</div>
+        </div>
+        <div class="stat-panel high">
+            <div class="number" id="statHigh">0</div>
+            <div class="label">High</div>
+        </div>
+        <div class="stat-panel medium">
+            <div class="number" id="statMedium">0</div>
+            <div class="label">Medium</div>
+        </div>
+        <div class="stat-panel low">
+            <div class="number" id="statLow">0</div>
+            <div class="label">Low</div>
+        </div>
+        <div class="stat-panel alerts">
+            <div class="number" id="statAlerts">0</div>
+            <div class="label">Alerts Sent</div>
+        </div>
+    </div>
+
+    <!-- ═══ PCAP UPLOAD BAR ═══ -->
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:#12121a;border:1px solid #2a2a3a;padding:8px 16px;clip-path:polygon(0 6px,6px 0,calc(100% - 6px) 0,100% 6px,100% calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,0 calc(100% - 6px));margin-bottom:20px;">
+        <span class="terminal-prefix">></span>
+        <span style="color:#94a3b8;font-weight:600;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;">Upload PCAP</span>
+        <input type="file" id="pcapInput" accept=".pcap,.pcapng,.cap" style="flex:1;min-width:140px;background:transparent;color:#94a3b8;font-family:'JetBrains Mono',monospace;font-size:0.7rem;border:none;outline:none;" />
+        <button class="btn btn-ghost" id="uploadBtn" style="font-size:0.6rem;padding:4px 12px;">Analyse</button>
+        <span style="font-size:0.6rem;color:#475569;margin-left:auto;">Max 50 MB</span>
+    </div>
+
+    <!-- ═══ DASHBOARD ROW 1: Top Attackers + Top Targets ═══ -->
+    <div class="dashboard-row">
+        <!-- Panel: Top Attackers -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">🔴 Top Attackers (Source IP)</span>
+                <span class="panel-actions" style="font-size:0.5rem;color:#475569;">count</span>
+            </div>
+            <div class="panel-body">
+                <ul id="attackerList">
+                    <li style="color:#475569;font-size:0.7rem;">Loading...</li>
+                </ul>
+            </div>
+        </div>
+        <!-- Panel: Top Targets -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">🎯 Top Targets (Dest IP)</span>
+                <span class="panel-actions" style="font-size:0.5rem;color:#475569;">count</span>
+            </div>
+            <div class="panel-body">
+                <ul id="targetList">
+                    <li style="color:#475569;font-size:0.7rem;">Loading...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ DASHBOARD ROW 2: Severity Distribution + Timeline ═══ -->
+    <div class="dashboard-row">
+        <!-- Panel: Severity Distribution -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📊 Severity Distribution</span>
+                <span class="panel-actions" style="font-size:0.5rem;color:#475569;">count</span>
+            </div>
+            <div class="panel-body">
+                <div class="severity-bars" id="severityBars">
+                    <div class="severity-bar"><span class="label">Critical</span><div class="track"><div class="fill fill-critical" style="width:0%;"></div></div><span class="value" id="sevCriticalCount">0</span></div>
+                    <div class="severity-bar"><span class="label">High</span><div class="track"><div class="fill fill-high" style="width:0%;"></div></div><span class="value" id="sevHighCount">0</span></div>
+                    <div class="severity-bar"><span class="label">Medium</span><div class="track"><div class="fill fill-medium" style="width:0%;"></div></div><span class="value" id="sevMediumCount">0</span></div>
+                    <div class="severity-bar"><span class="label">Low</span><div class="track"><div class="fill fill-low" style="width:0%;"></div></div><span class="value" id="sevLowCount">0</span></div>
+                </div>
+            </div>
+        </div>
+        <!-- Panel: Incident Timeline -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📈 Incident Timeline (Last 24h)</span>
+                <span class="panel-actions" style="font-size:0.5rem;color:#475569;">events</span>
+            </div>
+            <div class="panel-body">
+                <div class="timeline-chart" id="timelineChart"></div>
+                <div class="timeline-labels" id="timelineLabels"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ DASHBOARD ROW 3: Recent Alerts + System Health ═══ -->
+    <div class="dashboard-row">
+        <!-- Panel: Recent Alerts -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">🚨 Recent Alerts (Critical / High)</span>
+                <span class="panel-actions" style="font-size:0.5rem;color:#475569;">latest</span>
+            </div>
+            <div class="panel-body">
+                <div class="alert-feed" id="alertFeed">
+                    <div style="color:#475569;font-size:0.7rem;">No alerts yet</div>
+                </div>
+            </div>
+        </div>
+        <!-- Panel: System Health -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📌 System Health</span>
+                <span class="panel-actions" style="font-size:0.5rem;color:#475569;">metrics</span>
+            </div>
+            <div class="panel-body">
+                <ul>
+                    <li><span>Avg DNN Score</span> <span class="count" id="avgScore">0.00</span></li>
+                    <li><span>Total Incidents</span> <span class="count" id="totalCount">0</span></li>
+                    <li><span>Alerts Sent</span> <span class="count" id="alertsSentCount">0</span></li>
+                    <li><span>Critical / High %</span> <span class="count" id="criticalHighPct">0%</span></li>
+                    <li><span>IOCs Collected</span> <span class="count" id="iocCount">0</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ FULL-WIDTH INCIDENT LOG TABLE ═══ -->
+    <div class="panel panel-full" style="margin-top:4px;">
+        <div class="panel-header">
+            <span class="panel-title"><span class="blink" style="color:#00ff88;">▌</span> Incident Log</span>
+            <span class="panel-actions" style="font-size:0.5rem;color:#475569;" id="incidentCount">(0)</span>
+        </div>
+        <div class="panel-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Timestamp</th>
+                            <th>Type</th>
+                            <th>Severity</th>
+                            <th>Source → Dest</th>
+                            <th>DNN Score</th>
+                            <th>Alert</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incidentBody">
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <span>⛓️</span>
+                                    No incidents logged.<br />
+                                    <span style="color:#6b7280;font-size:0.65rem;">Click <strong style="color:#00ff88;">Scan</strong> to simulate or upload a PCAP.</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast">
+    <span id="toastMessage">Ready</span>
+    <span class="close" id="toastClose">✕</span>
+</div>
+
+<script>
+    // ─── DOM refs ──────────────────────────────────────────────────────────
+    const $ = (id) => document.getElementById(id);
+    const toast = $('toast');
+    const toastMsg = $('toastMessage');
+    const toastClose = $('toastClose');
+    let allIncidents = [];
+    let currentFilter = 'all';
+    let currentSearch = '';
+
+    // ─── Toast helper ──────────────────────────────────────────────────────
+    function showToast(message, type = 'info') {
+        toastMsg.textContent = message;
+        toast.className = 'toast show';
+        if (type === 'error') toast.classList.add('error');
+        if (type === 'success') toast.classList.add('success');
+        clearTimeout(window.toastTimer);
+        window.toastTimer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 5000);
+    }
+    toastClose.addEventListener('click', () => {
+        toast.classList.remove('show');
+    });
+
+    // ─── Fetch & Render ────────────────────────────────────────────────────
+    async function fetchStats() {
+        try {
+            const res = await fetch('/api/stats');
+            const data = await res.json();
+            $('statTotal').textContent = data.total || 0;
+            $('statCritical').textContent = data.critical || 0;
+            $('statHigh').textContent = data.high || 0;
+            $('statMedium').textContent = data.medium || 0;
+            $('statLow').textContent = data.low || 0;
+            $('statAlerts').textContent = data.alerts_sent || 0;
+            // Update system health
+            $('totalCount').textContent = data.total || 0;
+            $('alertsSentCount').textContent = data.alerts_sent || 0;
+            $('iocCount').textContent = data.ioc_count || 0;
+            const total = data.total || 0;
+            const criticalHigh = (data.critical || 0) + (data.high || 0);
+            const pct = total > 0 ? ((criticalHigh / total) * 100).toFixed(1) : 0;
+            $('criticalHighPct').textContent = pct + '%';
+            $('avgScore').textContent = data.avg_dnn_score ? data.avg_dnn_score.toFixed(2) : '0.00';
+            // Update last updated
+            $('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+        } catch (e) {
+            console.warn('Stats fetch failed', e);
+        }
+    }
+
+    async function fetchIncidents() {
+        try {
+            const res = await fetch('/api/incidents');
+            allIncidents = await res.json();
+            applyFiltersAndRender();
+            $('incidentCount').textContent = `(${allIncidents.length})`;
+        } catch (e) {
+            console.warn('Incidents fetch failed', e);
+            showToast('Failed to load incidents', 'error');
+        }
+    }
+
+    function applyFiltersAndRender() {
+        let filtered = [...allIncidents];
+
+        // Severity filter
+        const sevFilter = $('severityFilter').value;
+        if (sevFilter !== 'all') {
+            filtered = filtered.filter(inc => inc.severity === sevFilter);
+        }
+
+        // Search filter
+        const search = $('searchInput').value.toLowerCase().trim();
+        if (search) {
+            filtered = filtered.filter(inc =>
+                (inc.type || '').toLowerCase().includes(search) ||
+                (inc.source_ip || '').includes(search) ||
+                (inc.dest_ip || '').includes(search) ||
+                String(inc.incident_id || '').includes(search)
+            );
+        }
+
+        renderIncidents(filtered);
+        renderWidgets(filtered);
+    }
+
+    function renderIncidents(incidents) {
+        const tbody = $('incidentBody');
+        if (!incidents || incidents.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <span>⛓️</span>
+                            No incidents match your filters.<br />
+                            <span style="color:#6b7280;font-size:0.65rem;">Try adjusting the filters or click <strong style="color:#00ff88;">Scan</strong>.</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        for (const inc of incidents) {
+            const sev = inc.severity || 'LOW';
+            const sevClass = `sev-${sev.toLowerCase()}`;
+            const dnn = inc.dnn || {};
+            const score = dnn.threat_score || 0;
+            const scorePct = Math.round(score * 100);
+            const color = score < 0.4 ? '#22c55e' : (score < 0.7 ? '#eab308' : '#ef4444');
+            const alertSent = inc.alert && inc.alert.sent;
+            const alertIcon = alertSent ? '✅' : '⏳';
+            const ts = inc.timestamp ? new Date(inc.timestamp).toLocaleString() : 'N/A';
+            const src = inc.source_ip || '?';
+            const dst = inc.dest_ip || '?';
+            const port = inc.port || '?';
+
+            html += `
+                <tr>
+                    <td><strong>#${inc.incident_id || '?'}</strong></td>
+                    <td style="font-size:0.6rem;color:#94a3b8;">${ts}</td>
+                    <td>${inc.type || 'Unknown'}</td>
+                    <td><span class="severity-badge ${sevClass}">${sev}</span></td>
+                    <td style="font-family:monospace;font-size:0.65rem;">${src} → ${dst}:${port}</td>
+                    <td>
+                        <div class="dnn-score-bar"><div class="fill" style="width:${scorePct}%;background:${color};"></div></div>
+                        ${score.toFixed(2)}
+                    </td>
+                    <td class="alert-icon">${alertIcon}</td>
+                </tr>
+            `;
+        }
+        tbody.innerHTML = html;
+    }
+
+    function renderWidgets(incidents) {
+        if (!incidents || incidents.length === 0) {
+            document.querySelector('#attackerList').innerHTML = '<li style="color:#475569;font-size:0.7rem;">No data</li>';
+            document.querySelector('#targetList').innerHTML = '<li style="color:#475569;font-size:0.7rem;">No data</li>';
+            document.querySelector('#alertFeed').innerHTML = '<div style="color:#475569;font-size:0.7rem;">No alerts</div>';
+            ['sevCriticalCount','sevHighCount','sevMediumCount','sevLowCount'].forEach(id => $(id).textContent = '0');
+            document.querySelectorAll('.severity-bar .fill').forEach(el => el.style.width = '0%');
+            document.querySelector('#timelineChart').innerHTML = '';
+            document.querySelector('#timelineLabels').innerHTML = '';
+            return;
+        }
+
+        // 1. Top Attackers
+        const attackerCounts = {};
+        incidents.forEach(inc => {
+            const ip = inc.source_ip || 'unknown';
+            attackerCounts[ip] = (attackerCounts[ip] || 0) + 1;
+        });
+        const sortedAttackers = Object.entries(attackerCounts).sort((a,b) => b[1] - a[1]).slice(0,5);
+        const attackerHtml = sortedAttackers.map(([ip, count]) =>
+            `<li><span>${ip}</span> <span class="count">${count}</span></li>`
+        ).join('') || '<li style="color:#475569;font-size:0.7rem;">No data</li>';
+        document.querySelector('#attackerList').innerHTML = attackerHtml;
+
+        // 2. Top Targets
+        const targetCounts = {};
+        incidents.forEach(inc => {
+            const ip = inc.dest_ip || 'unknown';
+            targetCounts[ip] = (targetCounts[ip] || 0) + 1;
+        });
+        const sortedTargets = Object.entries(targetCounts).sort((a,b) => b[1] - a[1]).slice(0,5);
+        const targetHtml = sortedTargets.map(([ip, count]) =>
+            `<li><span>${ip}</span> <span class="count">${count}</span></li>`
+        ).join('') || '<li style="color:#475569;font-size:0.7rem;">No data</li>';
+        document.querySelector('#targetList').innerHTML = targetHtml;
+
+        // 3. Severity Distribution Bars
+        const sevCounts = { CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0 };
+        incidents.forEach(inc => {
+            const s = inc.severity || 'LOW';
+            if (sevCounts.hasOwnProperty(s)) sevCounts[s]++;
+        });
+        const total = incidents.length;
+        ['sevCriticalCount','sevHighCount','sevMediumCount','sevLowCount'].forEach(id => {
+            const key = id.replace('sev','').replace('Count','').toUpperCase();
+            const val = sevCounts[key] || 0;
+            $(id).textContent = val;
+        });
+        const maxSev = Math.max(sevCounts.CRITICAL, sevCounts.HIGH, sevCounts.MEDIUM, sevCounts.LOW, 1);
+        const barFillElements = document.querySelectorAll('.severity-bar .fill');
+        const sevKeys = ['CRITICAL','HIGH','MEDIUM','LOW'];
+        barFillElements.forEach((el, idx) => {
+            const key = sevKeys[idx];
+            const pct = (sevCounts[key] / maxSev) * 100;
+            el.style.width = pct + '%';
+        });
+
+        // 4. Timeline (last 24h)
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000;
+        const hourBuckets = Array(24).fill(0);
+        incidents.forEach(inc => {
+            const ts = new Date(inc.timestamp).getTime();
+            if (now - ts <= oneDay) {
+                const hour = Math.floor((now - ts) / (60 * 60 * 1000));
+                if (hour < 24) hourBuckets[hour]++;
+            }
+        });
+        const maxCount = Math.max(...hourBuckets, 1);
+        const chart = document.querySelector('#timelineChart');
+        chart.innerHTML = hourBuckets.map(count => {
+            const h = (count / maxCount) * 60 + 6;
+            return `<div class="timeline-bar" style="height:${h}px;" title="${count} events"></div>`;
+        }).join('');
+        const labels = document.querySelector('#timelineLabels');
+        labels.innerHTML = ['0h','6h','12h','18h','24h'].map(h => `<span>${h}</span>`).join('');
+
+        // 5. Recent Alerts (Critical/High)
+        const alerts = incidents.filter(inc => inc.severity === 'CRITICAL' || inc.severity === 'HIGH')
+                               .slice(0, 10);
+        const alertHtml = alerts.map(inc => {
+            const sevClass = inc.severity === 'CRITICAL' ? 'sev-critical' : 'sev-high';
+            return `<div class="alert-item">
+                <span class="sev ${sevClass}">${inc.severity}</span>
+                <span>${inc.type || 'Unknown'}</span>
+                <span style="font-size:0.6rem;color:#94a3b8;">${new Date(inc.timestamp).toLocaleTimeString()}</span>
+            </div>`;
+        }).join('') || '<div style="color:#475569;font-size:0.7rem;">No critical/high alerts</div>';
+        document.querySelector('#alertFeed').innerHTML = alertHtml;
+    }
+
+    // ─── Actions ───────────────────────────────────────────────────────────
+
+    // Scan
+    $('scanBtn').addEventListener('click', async () => {
+        $('scanBtn').disabled = true;
+        $('scanBtn').textContent = '⏳ Scanning...';
+        try {
+            const res = await fetch('/api/scan', { method: 'POST' });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(`✅ Incident #${data.incident.incident_id} processed`, 'success');
+            } else {
+                showToast(`❌ Scan failed: ${data.message}`, 'error');
+            }
+            await Promise.all([fetchStats(), fetchIncidents()]);
+        } catch (e) {
+            showToast('❌ Network error during scan', 'error');
+        }
+        $('scanBtn').disabled = false;
+        $('scanBtn').textContent = '🔍 Scan';
+    });
+
+    // Upload PCAP
+    $('uploadBtn').addEventListener('click', async () => {
+        const fileInput = $('pcapInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            showToast('Please select a .pcap file first', 'error');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+
+        $('uploadBtn').disabled = true;
+        $('uploadBtn').textContent = '⏳ Uploading...';
+        try {
+            const res = await fetch('/api/upload/pcap', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(`✅ ${data.count} incident(s) processed from ${data.source}`, 'success');
+            } else {
+                showToast(`❌ Upload failed: ${data.message}`, 'error');
+            }
+            fileInput.value = '';
+            await Promise.all([fetchStats(), fetchIncidents()]);
+        } catch (e) {
+            showToast('❌ Network error during upload', 'error');
+        }
+        $('uploadBtn').disabled = false;
+        $('uploadBtn').textContent = 'Analyse';
+    });
+
+    // Clear
+    $('clearBtn').addEventListener('click', async () => {
+        if (!confirm('Delete ALL incidents? This cannot be undone.')) return;
+        try {
+            const res = await fetch('/api/incidents', { method: 'DELETE' });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast('🗑️ All incidents cleared', 'success');
+            } else {
+                showToast(`❌ Clear failed: ${data.message}`, 'error');
+            }
+            await Promise.all([fetchStats(), fetchIncidents()]);
+        } catch (e) {
+            showToast('❌ Network error during clear', 'error');
+        }
+    });
+
+    // Report
+    $('reportBtn').addEventListener('click', () => {
+        window.open('/api/report', '_blank');
+        showToast('📄 Generating PDF report...', 'success');
+    });
+
+    // Refresh
+    $('refreshBtn').addEventListener('click', async () => {
+        showToast('⟳ Refreshing data...', 'info');
+        await Promise.all([fetchStats(), fetchIncidents()]);
+        showToast('✅ Data refreshed', 'success');
+    });
+
+    // ─── Filter Controls ──────────────────────────────────────────────────
+    $('severityFilter').addEventListener('change', applyFiltersAndRender);
+    $('searchInput').addEventListener('input', applyFiltersAndRender);
+    $('timeRange').addEventListener('change', () => {
+        // For now, just refresh - we could implement time-based filtering later
+        fetchIncidents();
+    });
+
+    // ─── Auto-refresh ──────────────────────────────────────────────────────
+    async function refreshAll() {
+        await Promise.all([fetchStats(), fetchIncidents()]);
+    }
+
+    // ─── Initial load ──────────────────────────────────────────────────────
+    refreshAll();
+    setInterval(refreshAll, 15000);
+
+    console.log('🛡️ Splunk-style Cyberpunk Dashboard ready');
+</script>
+
+</body>
+</html>
